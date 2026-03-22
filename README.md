@@ -10,15 +10,16 @@
 
 <br/>
 
-> **An intelligent computer vision system** that uses a pretrained **VGG16** model to automate a smart doggy door — and extends it with **Transfer Learning** to recognize a *specific* dog.
+> **An intelligent computer vision system** using pretrained **VGG16** to automate a smart doggy door — extended with **Transfer Learning** to recognize a *specific* dog.  
+> Built on top of the NVIDIA DLI course, then **independently improved** with confidence scoring, early stopping, model comparison, and training visualizations.
 
 <br/>
 
 ```
-🐕 Dog detected  →  ✅ Door Opens
-🐱 Cat detected  →  ❌ Door Stays Closed
-🐻 Bear detected →  ❌ Door Stays Closed
-🐾 Bo (First Dog) detected → ✅ VIP Entry Granted
+🐕 Dog detected         →  ✅ Door Opens
+🐱 Cat detected         →  ❌ Door Stays Closed
+🐻 Bear detected        →  ❌ Door Stays Closed
+🐾 Bo (First Dog) only  →  ✅ VIP Entry Granted
 ```
 
 </div>
@@ -28,30 +29,106 @@
 ## 📌 Table of Contents
 
 - [Project Overview](#-project-overview)
+- [My Improvements](#-my-improvements-vs-original)
 - [Tech Stack](#-tech-stack)
 - [How It Works](#-how-it-works)
-- [Part 1 — Doggy Door (Pretrained VGG16)](#-part-1--doggy-door-pretrained-vgg16)
-- [Part 2 — Presidential Doggy Door (Transfer Learning)](#-part-2--presidential-doggy-door-transfer-learning)
+- [Part 1 — Doggy Door](#-part-1--doggy-door-pretrained-vgg16)
+- [Part 2 — Presidential Doggy Door](#-part-2--presidential-doggy-door-transfer-learning)
 - [Utils & Helper Functions](#-utils--helper-functions)
 - [Results](#-results)
 - [Project Structure](#-project-structure)
 - [Key Concepts](#-key-concepts)
-- [Dataset](#-dataset)
 
 ---
 
 ## 🚀 Project Overview
 
-This project is split into **two real-world AI applications**, both powered by deep learning:
-
-| Stage | Notebook | Task | Approach |
-|-------|----------|------|----------|
+| Stage | File | Task | Approach |
+|-------|------|------|----------|
 | 🐶 Part 1 | `05a_doggy_door.ipynb` | Detect any dog → open door | Pretrained VGG16 (ImageNet) |
-| 🏛️ Part 2 | `05b_presidential_doggy_door.ipynb` | Detect *only Bo* → secure entry | Transfer Learning on VGG16 |
+| 🏛️ Part 2 | `05b_presidential_doggy_door.ipynb` | Detect only Bo → secure entry | Transfer Learning on VGG16 |
+| 🔥 Improved 1 | `improved_doggy_door.py` | Confidence + batch + model compare | **My improvements** |
+| 🔥 Improved 2 | `improved_presidential.py` | Fine-tuning + early stopping + plots | **My improvements** |
 
-The key insight here:
-> **Part 1** uses a model that already knows what a dog looks like.  
-> **Part 2** reuses that knowledge but specializes it — so only the *First Dog of the USA (Bo)* can enter.
+---
+
+## 🔥 My Improvements vs Original
+
+> The original course notebooks gave me the foundation. I then extended both implementations independently.
+
+### `improved_doggy_door.py`
+
+| Feature | Original Course | My Improvement |
+|---------|----------------|----------------|
+| Decision | Dog → Open | Dog **+ confidence ≥ 80%** → Open |
+| Processing | One image at a time | **Batch processing** — any number of images |
+| Error handling | Crashes on bad image | **Safe loader** with try/except |
+| Output | Print statement | **Formatted summary report** |
+| Models tested | VGG16 only | **VGG16 vs ResNet50 comparison** |
+
+**Confidence + Threshold Logic I added:**
+```python
+# MY IMPROVEMENT: Two-layer decision
+# Original just checked: is it a dog?
+# I also check: how SURE is the model?
+
+probabilities = F.softmax(outputs, dim=1)
+confidence, predicted_class = probabilities.max(dim=1)
+
+if is_dog(predicted_class) and confidence >= 0.80:
+    print(f"✅ Door OPENS  ({confidence*100:.1f}% confident)")
+elif is_dog(predicted_class):
+    print(f"❌ Uncertain  ({confidence*100:.1f}% — below 80% threshold)")
+else:
+    print("❌ Not a dog — Door CLOSED")
+```
+
+### `improved_presidential.py`
+
+| Feature | Original Course | My Improvement |
+|---------|----------------|----------------|
+| Layer freezing | All layers frozen | **Option to fine-tune last layers** |
+| Training | Fixed epochs | **Early stopping** (stops when not improving) |
+| Visualization | None | **Training curve plot** saved as PNG |
+| Model saving | Not implemented | **Save best model**, reload without retraining |
+| Prediction | Class index only | **Class name + confidence + door decision** |
+| Architecture | 1 hidden layer | **2 hidden layers + Dropout** to reduce overfitting |
+
+**Early Stopping I built:**
+```python
+class EarlyStopping:
+    """
+    Stops training when validation loss stops improving.
+    Prevents overfitting on the small Bo dataset.
+    """
+    def __init__(self, patience=5):
+        self.patience = patience
+        self.best_loss = float("inf")
+        self.counter = 0
+
+    def check(self, val_loss):
+        if val_loss < self.best_loss:
+            self.best_loss = val_loss
+            self.counter = 0
+            return True   # Save model
+        self.counter += 1
+        if self.counter >= self.patience:
+            self.should_stop = True
+        return False
+```
+
+**Fine-tuning option I added:**
+```python
+# MY IMPROVEMENT: Selectively unfreeze last conv layers
+# Original: model.requires_grad_(False)  — everything frozen
+# Mine: gives option to fine-tune the last 2 layers
+
+model.requires_grad_(False)   # Freeze everything first
+
+if fine_tune_last_layers:
+    for param in model.features[24:].parameters():
+        param.requires_grad = True   # Unfreeze only last 2 conv layers
+```
 
 ---
 
@@ -61,16 +138,16 @@ The key insight here:
 |------|---------|
 | 🐍 Python 3.8+ | Core language |
 | 🔥 PyTorch | Deep learning framework |
-| 🖼️ Torchvision | Pretrained VGG16 model |
-| 📓 Jupyter Notebook | Development environment |
-| 🎮 NVIDIA DLI | Training platform |
-| 📊 Matplotlib | Visualization |
+| 🖼️ Torchvision | Pretrained VGG16 + ResNet50 |
+| 📓 Jupyter Notebook | Development & exploration |
+| 📊 Matplotlib | Training curve visualization |
+| 🎮 NVIDIA DLI | Original course platform |
 
 ---
 
 ## 🧠 How It Works
 
-### 🔷 Overall Architecture
+### Architecture Flow
 
 ```
 Input Image (224×224 RGB)
@@ -78,32 +155,37 @@ Input Image (224×224 RGB)
          ▼
 ┌─────────────────────────┐
 │   VGG16 Pretrained      │  ← Trained on 1.2M ImageNet images
-│   (Feature Extractor)   │    Knows: edges → shapes → objects
+│   (Feature Extractor)   │    Learns: edges → textures → objects
+│   [FROZEN]              │
 └─────────────────────────┘
          │
          ▼
 ┌─────────────────────────┐
-│   Custom Classifier     │  ← We build this on top
-│   (Our New Layers)      │    Trained on our small dataset
+│   Custom Classifier     │  ← Built by me, trained on Bo photos
+│   Linear → ReLU → Drop  │
+│   Linear → ReLU         │
+│   Linear(2)             │
 └─────────────────────────┘
          │
          ▼
-    Prediction
-  (Dog / Not Dog / Bo)
+    Softmax Probabilities
+         │
+         ▼
+  Confidence Threshold Check  ← MY IMPROVEMENT
+         │
+         ▼
+   OPEN DOOR / DENY ACCESS
 ```
 
-### 🔷 Why VGG16?
-
-VGG16 won the **2014 ImageNet Challenge** — trained on millions of labeled images across 1000 categories. Instead of training from scratch, we *reuse* its powerful feature extraction ability.
+### What VGG16 Learned Layer by Layer
 
 ```
-Convolutional Layers (what VGG16 learned):
+Conv Layer 1-3  →  Edges, lines, gradients
+Conv Layer 4-7  →  Textures, patterns
+Conv Layer 8-13 →  Shapes, object parts (fur, paws, eyes)
+Conv Layer 14-16→  Full objects (dogs, cats, etc.)
 
-Layer 1:  Detects → Edges, Lines
-Layer 3:  Detects → Textures, Patterns
-Layer 7:  Detects → Shapes, Contours
-Layer 13: Detects → Object Parts (fur, eyes, paws)
-Layer 16: Detects → Full Objects (dogs, cats, bears)
+We KEEP all of this (frozen) and only train the final decision layers.
 ```
 
 ---
@@ -115,9 +197,9 @@ Layer 16: Detects → Full Objects (dogs, cats, bears)
 ```python
 from torchvision.models import vgg16, VGG16_Weights
 
-# Load VGG16 pretrained on ImageNet
 weights = VGG16_Weights.IMAGENET1K_V1
 model = vgg16(weights=weights)
+model.eval()
 ```
 
 ### Image Preprocessing
@@ -125,48 +207,27 @@ model = vgg16(weights=weights)
 ```python
 from torchvision import transforms
 
-# VGG16 expects 224×224 normalized images
-IMG_WIDTH, IMG_HEIGHT = 224, 224
-
 preprocess = transforms.Compose([
-    transforms.Resize((IMG_HEIGHT, IMG_WIDTH)),
+    transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],  # ImageNet mean
-        std=[0.229, 0.224, 0.225]    # ImageNet std
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
     )
 ])
 ```
 
-### Doggy Door Logic
+### Door Decision Logic
 
 ```python
-import torch
+# ImageNet dog classes = indices 151 to 268
+outputs = model(image)
+_, predicted_idx = torch.max(outputs, 1)
 
-def run_doggy_door(image_path):
-    # Preprocess image
-    image = preprocess(Image.open(image_path)).unsqueeze(0)
-
-    # Run through VGG16
-    with torch.no_grad():
-        outputs = model(image)
-
-    # VGG16 returns 1000 class scores
-    # ImageNet dog classes are in range 151-268
-    _, predicted_idx = torch.max(outputs, 1)
-
-    if 151 <= predicted_idx.item() <= 268:
-        print("🐕 Dog detected → ✅ Door Opens!")
-    else:
-        print("🚫 Not a dog → ❌ Door Stays Closed")
-```
-
-### Prediction Results
-
-```
-📸 happy_dog.jpg   →  Class: 207 (Golden Retriever)  →  ✅ Door OPENS
-📸 sleepy_cat.jpg  →  Class: 281 (Tabby Cat)         →  ❌ Door CLOSED
-📸 brown_bear.jpg  →  Class: 294 (Brown Bear)         →  ❌ Door CLOSED
+if 151 <= predicted_idx.item() <= 268:
+    print("🐕 Dog → Door Opens")
+else:
+    print("🚫 Not a dog → Door Closed")
 ```
 
 ---
@@ -175,170 +236,94 @@ def run_doggy_door(image_path):
 
 ### The Problem
 
-VGG16 can detect *any* dog — but the White House only wants **Bo** (the Portuguese Water Dog, First Dog 2009–2017) to enter.
-
 ```
-❌ Problem:   VGG16 → "It's a dog"  (all dogs look the same to it)
-✅ Solution:  Transfer Learning → "It's specifically Bo"
+VGG16 sees any dog → "It's a dog"  ✅
+VGG16 sees Bo     → "It's a dog"  ✅  ← Can't tell the difference!
+
+We need: Bo → "It's Bo" ✅ | Other dog → "Not Bo" ❌
 ```
 
 ### Transfer Learning Strategy
 
 ```
-Old VGG16 Model (Frozen)         New Custom Layers (Trainable)
-─────────────────────────         ──────────────────────────────
-Input → Conv1 → Conv2 ...   →    Linear(25088, 1024)
-(These learned general             → ReLU()
- features from ImageNet,           → Linear(1024, 2)
- we reuse them as-is)              → Softmax
-                                  Output: [Bo, Not Bo]
+┌──────────────────────────────────────────────────────┐
+│  VGG16 Pretrained Layers (FROZEN — reused as-is)     │
+│                                                      │
+│  features[0..23]  → General visual knowledge         │
+│  features[24..]   → (optionally fine-tuned)          │
+└──────────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────────┐
+│  Custom Classifier (TRAINABLE — trained on Bo)       │
+│                                                      │
+│  Linear(25088 → 1024) → ReLU → Dropout(0.5)          │
+│  Linear(1024 → 256)   → ReLU                         │
+│  Linear(256 → 2)      → [Bo, Not Bo]                 │
+└──────────────────────────────────────────────────────┘
 ```
 
-### Code
+### Build the Model
 
 ```python
-import torch.nn as nn
-from torchvision.models import vgg16, VGG16_Weights
+model = vgg16(weights=VGG16_Weights.IMAGENET1K_V1)
+model.requires_grad_(False)   # Freeze pretrained layers
 
-# Step 1: Load pretrained VGG16
-weights = VGG16_Weights.IMAGENET1K_V1
-model = vgg16(weights=weights)
-
-# Step 2: Freeze ALL pretrained layers
-# (We don't want to destroy what VGG16 already learned)
-model.requires_grad_(False)
-
-# Step 3: Replace the classifier with our own
-# (This is the only part that will train on Bo's photos)
 model.classifier = nn.Sequential(
-    nn.Linear(25088, 1024),   # 25088 = VGG16 feature size
+    nn.Linear(25088, 1024),
     nn.ReLU(),
-    nn.Linear(1024, 2)        # 2 classes: Bo or Not Bo
+    nn.Dropout(0.5),
+    nn.Linear(1024, 256),
+    nn.ReLU(),
+    nn.Linear(256, 2)
 )
-
-print("Model ready for transfer learning!")
 ```
 
-### Why Freeze the Old Layers?
-
-```
-If we DON'T freeze:
-  → All 138 million weights update
-  → Only have ~30 images of Bo
-  → Model OVERFITS badly ❌
-
-If we DO freeze:
-  → Only ~26 million new weights update
-  → Small dataset is enough
-  → Model generalizes well ✅
-```
-
-### Training Setup
+### Training
 
 ```python
-from torch.optim import Adam
-
-loss_function = nn.CrossEntropyLoss()
-optimizer = Adam(model.parameters(), lr=0.001)
-```
-
-### Training Loop
-
-```python
-epochs = 10
-
-for epoch in range(epochs):
-    # Training phase
-    train(model, train_loader, train_N, random_trans, optimizer, loss_function)
-
-    # Validation phase
-    validate(model, valid_loader, valid_N, loss_function)
+loss_fn = nn.CrossEntropyLoss()
+optimizer = Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.001)
 ```
 
 ---
 
 ## ⚙️ Utils & Helper Functions
 
-The `utils.py` file contains core reusable components:
-
-### MyConvBlock — Custom Conv Layer
+### MyConvBlock
 
 ```python
-import torch
-import torch.nn as nn
-
 class MyConvBlock(nn.Module):
-    """
-    A reusable convolutional block:
-    Conv2D → BatchNorm → ReLU → Dropout → MaxPool
-    """
+    """Conv2D → BatchNorm → ReLU → Dropout → MaxPool"""
     def __init__(self, in_ch, out_ch, dropout_p):
-        kernel_size = 3
         super().__init__()
-
         self.model = nn.Sequential(
-            nn.Conv2d(in_ch, out_ch, kernel_size, stride=1, padding=1),
+            nn.Conv2d(in_ch, out_ch, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(out_ch),
             nn.ReLU(),
             nn.Dropout(dropout_p),
             nn.MaxPool2d(2, stride=2)
         )
-
     def forward(self, x):
         return self.model(x)
 ```
 
-### get_batch_accuracy — Accuracy Calculator
-
-```python
-def get_batch_accuracy(output, y, N):
-    """
-    Calculates accuracy for one batch.
-    output: model predictions
-    y: true labels
-    N: number of samples
-    """
-    pred = output.argmax(dim=1, keepdim=True)
-    correct = pred.eq(y.view_as(pred)).sum().item()
-    return correct / N
-```
-
-### train — Training Function
+### train / validate
 
 ```python
 def train(model, train_loader, train_N, random_trans, optimizer, loss_function):
-    loss = 0
-    accuracy = 0
-
-    model.train()  # Set to training mode
+    model.train()
     for x, y in train_loader:
-        output = model(random_trans(x))     # Forward pass with augmentation
-        optimizer.zero_grad()               # Clear old gradients
-        batch_loss = loss_function(output, y)
-        batch_loss.backward()               # Backpropagation
-        optimizer.step()                    # Update weights
+        output = model(random_trans(x))
+        optimizer.zero_grad()
+        loss_function(output, y).backward()
+        optimizer.step()
 
-        loss += batch_loss.item()
-        accuracy += get_batch_accuracy(output, y, train_N)
-
-    print('Train - Loss: {:.4f} Accuracy: {:.4f}'.format(loss, accuracy))
-```
-
-### validate — Validation Function
-
-```python
 def validate(model, valid_loader, valid_N, loss_function):
-    loss = 0
-    accuracy = 0
-
-    model.eval()  # Set to evaluation mode (no dropout)
-    with torch.no_grad():   # No gradient calculation needed
+    model.eval()
+    with torch.no_grad():
         for x, y in valid_loader:
             output = model(x)
-            loss += loss_function(output, y).item()
-            accuracy += get_batch_accuracy(output, y, valid_N)
-
-    print('Valid - Loss: {:.4f} Accuracy: {:.4f}'.format(loss, accuracy))
 ```
 
 ---
@@ -347,19 +332,19 @@ def validate(model, valid_loader, valid_N, loss_function):
 
 ### Part 1 — General Doggy Door
 
-| Input Image | VGG16 Prediction | Dog? | Door Action |
-|-------------|-----------------|------|-------------|
-| 🐕 happy_dog.jpg | Golden Retriever (207) | ✅ Yes | 🔓 Opens |
-| 🐱 sleepy_cat.jpg | Tabby Cat (281) | ❌ No | 🔒 Closed |
-| 🐻 brown_bear.jpg | Brown Bear (294) | ❌ No | 🔒 Closed |
+| Input Image | VGG16 Class | Dog? | Confidence | Door |
+|-------------|------------|------|------------|------|
+| happy_dog.jpg | Golden Retriever (207) | ✅ | High | 🔓 Opens |
+| sleepy_cat.jpg | Tabby Cat (281) | ❌ | High | 🔒 Closed |
+| brown_bear.jpg | Brown Bear (294) | ❌ | High | 🔒 Closed |
 
 ### Part 2 — Presidential Doggy Door
 
-| Input | Transfer Model Says | Access |
-|-------|-------------------|--------|
-| Bo (Portuguese Water Dog) | ✅ It's Bo! | 🔓 Granted |
-| Other dog | ❌ Not Bo | 🔒 Denied |
-| Cat / Bear / etc | ❌ Not Bo | 🔒 Denied |
+| Input | Prediction | Confidence | Access |
+|-------|-----------|------------|--------|
+| Bo photo | Bo ✅ | > 85% | 🔓 Granted |
+| Other dog | Not Bo ❌ | — | 🔒 Denied |
+| Cat / Bear | Not Bo ❌ | — | 🔒 Denied |
 
 ---
 
@@ -368,20 +353,17 @@ def validate(model, valid_loader, valid_N, loss_function):
 ```
 transfer-learning-doggy-door-ai/
 │
-├── 📓 05a_doggy_door.ipynb            # Part 1: VGG16 pretrained doggy door
-├── 📓 05b_presidential_doggy_door.ipynb  # Part 2: Transfer learning for Bo
-├── 🐍 utils.py                        # Helper: train, validate, conv block
+├── 📓 05a_doggy_door.ipynb                 ← Original course notebook
+├── 📓 05b_presidential_doggy_door.ipynb    ← Original course notebook
+├── 🐍 utils.py                             ← Original course utilities
 │
-├── 📂 data/                           # Training data for Bo detection
-│   ├── presidential_doggy_door/
-│   │   ├── train/
-│   │   └── valid/
+├── 🔥 improved_doggy_door.py               ← My improvements (Part 1)
+├── 🔥 improved_presidential.py             ← My improvements (Part 2)
 │
-├── 📂 images/                         # Test images
-│   ├── happy_dog.jpg
-│   ├── sleepy_cat.jpg
-│   └── brown_bear.jpg
+├── 📂 data/                                ← Bo training images
+├── 📂 images/                              ← Test images
 │
+├── 📊 training_curves.png                  ← Auto-generated by improved code
 └── 📄 README.md
 ```
 
@@ -389,80 +371,63 @@ transfer-learning-doggy-door-ai/
 
 ## 🧠 Key Concepts
 
-### Transfer Learning (Core Idea)
+### Transfer Learning
 
 ```
-❌ WITHOUT Transfer Learning:
-   Need thousands of Bo photos
-   Train for hours/days
-   Risk of overfitting
+❌ Train from scratch:
+   Need thousands of Bo images → weeks of training → likely overfits
 
-✅ WITH Transfer Learning:
-   Just ~30 photos of Bo
-   Train in minutes
-   Works great on small data
-```
-
-### Feature Hierarchy in CNNs
-
-```
-Layer 1-3  (Early)   → Edges, Colors, Gradients
-Layer 4-7  (Middle)  → Textures, Patterns, Shapes  
-Layer 8-13 (Deep)    → Object Parts (eyes, paws, fur)
-Layer 14-16 (Final)  → Full Objects, Scene Context
-
-💡 We KEEP early/middle layers (general)
-💡 We REPLACE final layers (make them specific to Bo)
+✅ Transfer Learning:
+   Reuse VGG16's 138M parameters of visual knowledge
+   Train only new layers → works with ~30 images
 ```
 
 ### Freezing vs Fine-tuning
 
 ```
-Frozen Layers:    weights DON'T change during training
-                  → preserves pretrained knowledge
-                  → safe for small datasets
-
-Trainable Layers: weights DO change during training
-                  → specializes the model
-                  → risky if too many params + small data
+Frozen     →  weights don't update  →  safe for tiny datasets
+Fine-tuned →  weights slowly adapt  →  risky if too much data is too small
+                                       (I explore both in improved_presidential.py)
 ```
 
-### ⚠️ Data Bias (Important Note)
+### Feature Hierarchy
 
-Transfer learning can carry over biases from the original model. If ImageNet was biased in how it labeled certain animals or environments, our new model may inherit those biases. Always evaluate your model's performance across diverse inputs.
+```
+Layer 1-3  (Early)   →  Edges, colors
+Layer 4-7  (Middle)  →  Textures, shapes
+Layer 8-16 (Deep)    →  Full objects
 
----
+We reuse early/middle (general) → replace deep (make it specific to Bo)
+```
 
-## 📦 Dataset
+### ⚠️ Data Bias
 
-- **Part 1:** Uses VGG16 pretrained weights on **ImageNet** (1.2M images, 1000 classes) — no extra data needed.
-- **Part 2:** Small dataset of **Bo** photos provided by NVIDIA DLI course.
-
-> Dataset courtesy of [NVIDIA Deep Learning Institute (DLI)](https://www.nvidia.com/en-us/training/)
+Transfer learning can inherit biases from the original training data. If ImageNet underrepresents certain visual environments or animal types, our model may perform poorly in those cases. Always test across diverse inputs.
 
 ---
 
 ## 🏆 What I Learned
 
-- ✅ How to load and use a **pretrained CNN model** (VGG16)
-- ✅ How **ImageNet class indices** map to real-world objects
-- ✅ The concept of **Transfer Learning** and why it works
-- ✅ How to **freeze layers** and build custom classifier heads
-- ✅ Why **data bias** matters in AI systems
-- ✅ How to build a **real-world AI pipeline** end-to-end
+- ✅ Loading and using a **pretrained CNN (VGG16)** for real-world classification
+- ✅ How **ImageNet class indices** map to object categories
+- ✅ **Transfer learning** — reusing knowledge from one task for another
+- ✅ **Layer freezing** and why it prevents overfitting on small datasets
+- ✅ **Confidence thresholding** to make predictions more reliable
+- ✅ **Early stopping** to avoid wasting compute and overfitting
+- ✅ Why **data bias** is a real concern in deployed AI systems
 
 ---
 
 ## 🙏 Acknowledgements
 
-- [NVIDIA Deep Learning Institute](https://www.nvidia.com/en-us/training/) — course material and dataset
-- [VGG16 Paper](https://arxiv.org/abs/1409.1556) — Very Deep Convolutional Networks for Large-Scale Image Recognition
-- [PyTorch](https://pytorch.org/) & [Torchvision](https://pytorch.org/vision/) — framework
+- [NVIDIA Deep Learning Institute](https://www.nvidia.com/en-us/training/) — course foundation and dataset
+- [VGG16 Paper](https://arxiv.org/abs/1409.1556) — Very Deep Convolutional Networks (Simonyan & Zisserman, 2014)
+- [PyTorch](https://pytorch.org/) & [Torchvision](https://pytorch.org/vision/)
 
 ---
 
 <div align="center">
 
-Made with 🧠 + 🔥 PyTorch | NVIDIA DLI Deep Learning Course
+Built on NVIDIA DLI Foundation · Extended & Improved Independently · PyTorch 🔥
 
 </div>
