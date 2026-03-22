@@ -26,12 +26,26 @@
 
 ---
 
+## 🎬 Video Walkthrough
+
+<div align="center">
+
+[![YouTube Video](https://img.shields.io/badge/Watch%20on-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@YourChannelHere)
+
+> 📺 **I made a full video explaining this project** — original code walkthrough + all 3 improvements explained line by line.  
+> Watch it to understand exactly what I changed and **why** each improvement matters.
+
+</div>
+
+---
+
 ## 📌 Table of Contents
 
 - [Project Overview](#-project-overview)
 - [My Improvements](#-my-improvements-vs-original)
 - [Tech Stack](#-tech-stack)
 - [How It Works](#-how-it-works)
+- [Visual Diagrams](#-visual-diagrams)
 - [Part 1 — Doggy Door](#-part-1--doggy-door-pretrained-vgg16)
 - [Part 2 — Presidential Doggy Door](#-part-2--presidential-doggy-door-transfer-learning)
 - [Utils & Helper Functions](#-utils--helper-functions)
@@ -176,6 +190,43 @@ Input Image (224×224 RGB)
          ▼
    OPEN DOOR / DENY ACCESS
 ```
+
+---
+
+## 🖼️ Visual Diagrams
+
+### Diagram 1 — Transfer Learning Architecture (Feature Spectrum)
+
+> This diagram shows the full pipeline I used. Left side = frozen pretrained layers (general knowledge). Right side = my custom trainable layers (specific to the task).
+
+![Transfer Learning Architecture](diagrams/transfer_learning_architecture.png)
+
+**What this shows:**
+- **Conv Stage 1** learns low-level features — edges and curves
+- **Conv Stage 2** learns mid-level features — patterns and textures  
+- **Conv Stage 3** learns high-level features — simple object parts
+- **Conv Stage 4** learns complex deep features — specific object shapes
+- All 4 stages are **frozen** (locked 🔒) — we reuse VGG16's pretrained knowledge
+- The **Custom Classification Head** on the right is the only part we train — this is where Bo detection happens
+- The **Softmax output** gives us confidence scores — which is Improvement #1 I added
+
+---
+
+### Diagram 2 — CNN Layer-by-Layer (How Convolutions Work)
+
+> This diagram shows exactly how an image travels through the network — from raw pixels to a final prediction with confidence score.
+
+![CNN Transfer Learning Diagram](diagrams/cnn_transfer_learning.png)
+
+**What this shows:**
+- Image goes in as raw pixels (e.g. 1 × 28 × 28)
+- Kernels (small filters) slide across the image to detect features — this is `nn.Conv2d` in PyTorch
+- Max Pooling shrinks the image while keeping important features — this is `nn.MaxPool2d`
+- After all conv layers, the image is **Flattened** into a 1D vector — a list of numbers
+- That vector goes into **Fully Connected (Linear) layers** — this is `nn.Linear` in PyTorch
+- Final output = prediction with confidence score from Softmax
+
+---
 
 ### What VGG16 Learned Layer by Layer
 
